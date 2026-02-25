@@ -8,6 +8,8 @@ const SOURCE_BADGE = {
   insurancedekho: 'bg-green-100 text-green-700',
 }
 
+const API_BASE = import.meta.env.VITE_API_URL || ""
+
 export default function ManagePlans() {
   const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
@@ -24,7 +26,7 @@ export default function ManagePlans() {
   const fetchPlans = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/plans')
+      const res = await fetch(`${API_BASE}/api/plans`)
       const data = await res.json()
       setPlans(data)
     } finally {
@@ -53,7 +55,7 @@ export default function ManagePlans() {
     if (!window.confirm(`Delete "${plan.plan_name}" by ${plan.provider}?`)) return
     setDeletingId(plan.id)
     try {
-      const res = await fetch(`/api/plans/${plan.id}`, { method: 'DELETE' })
+      const res = await fetch(`${API_BASE}/api/plans/${plan.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Delete failed')
       setPlans((prev) => prev.filter((p) => p.id !== plan.id))
       showToast('🗑️ Plan deleted')

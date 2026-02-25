@@ -4,6 +4,8 @@ import PlanCard from "./components/PlanCard"
 import AIRecommendation from "./components/AIRecommendation"
 import ManagePlans from "./components/ManagePlans"
 
+const API_BASE = import.meta.env.VITE_API_URL || ""
+
 export default function App() {
   const [tab, setTab] = useState("analyzer")
   const [result, setResult] = useState(null)
@@ -16,7 +18,7 @@ export default function App() {
     setError("")
     setResult(null)
     try {
-      const res = await fetch("/api/recommend", {
+      const res = await fetch(`${API_BASE}/api/recommend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -36,7 +38,7 @@ export default function App() {
   const handleScrape = async () => {
     setScraping(true)
     try {
-      await fetch("/api/scrape", { method: "POST" })
+      await fetch(`${API_BASE}/api/scrape`, { method: "POST" })
       setTimeout(() => setScraping(false), 3000)
     } catch {
       setScraping(false)

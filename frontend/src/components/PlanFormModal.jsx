@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+const API_BASE = import.meta.env.VITE_API_URL || ""
 const EMPTY_FORM = {
   plan_name: '',
   provider: '',
@@ -62,7 +63,7 @@ export default function PlanFormModal({ plan, onClose, onSaved }) {
     }
 
     try {
-      const url = isEdit ? `/api/plans/${plan.id}` : '/api/plans'
+      const url = isEdit ? `${API_BASE}/api/plans/${plan.id}` : `${API_BASE}/api/plans`
       const method = isEdit ? 'PUT' : 'POST'
       const res = await fetch(url, {
         method,
