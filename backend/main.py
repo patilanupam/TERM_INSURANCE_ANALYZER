@@ -69,6 +69,37 @@ class PlanOut(BaseModel):
         from_attributes = True
 
 
+class PlanCreate(BaseModel):
+    plan_name: str = Field(..., min_length=2)
+    provider: str = Field(..., min_length=2)
+    sum_assured_min: float = Field(..., gt=0, description="Min sum assured in Lakhs")
+    sum_assured_max: float = Field(..., gt=0, description="Max sum assured in Lakhs")
+    premium_annual: float = Field(..., gt=0, description="Annual premium in INR")
+    policy_term_min: int = Field(..., ge=1, le=50)
+    policy_term_max: int = Field(..., ge=1, le=60)
+    age_min: int = Field(18, ge=1, le=99)
+    age_max: int = Field(65, ge=1, le=99)
+    claim_settlement_ratio: float = Field(..., ge=0, le=100)
+    key_features: str = Field("", description="Pipe-separated features e.g. 'Feature 1|Feature 2'")
+    source_url: str = Field("", description="Official plan URL")
+
+
+class PlanUpdate(BaseModel):
+    plan_name: Optional[str] = None
+    provider: Optional[str] = None
+    sum_assured_min: Optional[float] = None
+    sum_assured_max: Optional[float] = None
+    premium_annual: Optional[float] = None
+    policy_term_min: Optional[int] = None
+    policy_term_max: Optional[int] = None
+    age_min: Optional[int] = None
+    age_max: Optional[int] = None
+    claim_settlement_ratio: Optional[float] = None
+    key_features: Optional[str] = None
+    source_url: Optional[str] = None
+
+
+
 class RecommendRequest(BaseModel):
     age: int = Field(..., ge=18, le=70, description="User's current age")
     sum_assured: float = Field(..., gt=0, description="Desired sum assured in Lakhs")
@@ -167,3 +198,48 @@ def stats(db: Session = Depends(get_db)):
         "total_plans": total,
         "sources": [s[0] for s in sources],
     }
+
+
+# ── Manual CRUD endpoints ─────────────────────────────────────────────────────
+
+@app.post("/api/plans", response_model=PlanOut, status_code=201)
+def create_plan(plan: PlanCreate, db: Session = Depends(get_db)):
+    """Manually add a new insurance plan."""
+    new_plan = InsurancePlan(**plan.model_dump(), source="manual")
+    db.add(new_plan)
+    db.commit()
+    db.refresh(new_plan)
+    return new_plan
+
+
+@app.put("/api/plans/{plan_id}", response_model=PlanOut)
+def update_plan(plan_id: int, updates: PlanUpdate, db: Session = Depends(get_db)):
+    """Update an existing insurance plan."""
+    plan = db.query(InsurancePlan).filter(InsurancePlan.id == plan_id).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    for field, value in updates.model_dump(exclude_none=True).items():
+        setattr(plan, field, value)
+    db.commit()
+    db.refresh(plan)
+    return plan
+
+
+@app.delete("/api/plans/{plan_id}")
+def delete_plan(plan_id: int, db: Session = Depends(get_db)):
+    """Delete an insurance plan."""
+    plan = db.query(InsurancePlan).filter(InsurancePlan.id == plan_id).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    db.delete(plan)
+    db.commit()
+    return {"message": f"Plan '{plan.plan_name}' deleted successfully"}
+
+
+@app.get("/api/plans/{plan_id}", response_model=PlanOut)
+def get_plan(plan_id: int, db: Session = Depends(get_db)):
+    """Get a single plan by ID."""
+    plan = db.query(InsurancePlan).filter(InsurancePlan.id == plan_id).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    return plan

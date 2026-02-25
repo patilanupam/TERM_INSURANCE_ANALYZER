@@ -15,7 +15,32 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY", ""))
-_model = genai.GenerativeModel("gemini-1.5-flash")
+_model = genai.GenerativeModel("gemini-2.5-flash-lite")
+
+# Ordered fallback list in case a model hits quota
+_MODEL_FALLBACKS = [
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-flash-lite-latest",
+    "gemini-flash-latest",
+]
+
+
+def _get_working_model():
+    """Return the first model that responds without quota errors."""
+    for name in _MODEL_FALLBACKS:
+        try:
+            m = genai.GenerativeModel(name)
+            m.generate_content("hi")
+            return m
+        except Exception as e:
+            if "404" in str(e) or "not found" in str(e).lower():
+                continue
+            if "429" in str(e) or "quota" in str(e).lower():
+                continue
+    return None
 
 
 def _build_prompt(user: Dict, plans: List[Dict]) -> str:
@@ -100,7 +125,8 @@ def analyze_plans(user_inputs: Dict[str, Any], plans: List[Dict]) -> Dict:
     prompt = _build_prompt(user_inputs, plan_summaries)
 
     try:
-        response = _model.generate_content(prompt)
+        active_model = _model
+        response = active_model.generate_content(prompt)
         raw = response.text.strip()
 
         # Extract JSON from response (handles markdown code blocks)
@@ -110,7 +136,22 @@ def analyze_plans(user_inputs: Dict[str, Any], plans: List[Dict]) -> Dict:
         return json.loads(raw)
 
     except Exception as e:
-        logger.warning(f"Gemini API error: {e}. Falling back to rule-based ranking.")
+        # On quota/rate-limit, try other models automatically
+        if "429" in str(e) or "quota" in str(e).lower() or "404" in str(e):
+            logger.warning(f"Primary model failed ({e}). Trying fallback models...")
+            for model_name in _MODEL_FALLBACKS[1:]:
+                try:
+                    m = genai.GenerativeModel(model_name)
+                    response = m.generate_content(prompt)
+                    raw = response.text.strip()
+                    json_match = re.search(r"\{.*\}", raw, re.DOTALL)
+                    if json_match:
+                        return json.loads(json_match.group())
+                    return json.loads(raw)
+                except Exception as fe:
+                    logger.warning(f"Fallback model {model_name} also failed: {fe}")
+                    continue
+        logger.warning(f"All Gemini models failed: {e}. Using rule-based ranking.")
         return _fallback_ranking(user_inputs, eligible)
 
 

@@ -116,7 +116,11 @@ def scrape_policybazaar() -> List[Dict]:
     import concurrent.futures
 
     def _run():
-        loop = asyncio.new_event_loop()
+        import sys
+        if sys.platform == "win32":
+            loop = asyncio.ProactorEventLoop()
+        else:
+            loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             return loop.run_until_complete(_scrape_live())
