@@ -11,7 +11,7 @@ export default function AIRecommendation({ summary, topPick, totalAnalyzed }) {
           </svg>
         </div>
         <div>
-          <p className="text-white/70 text-sm">Gemini AI Recommendation</p>
+          <p className="text-white/70 text-sm">Plan Recommendation</p>
           <p className="font-bold text-lg">{totalAnalyzed} plans analyzed</p>
         </div>
       </div>
